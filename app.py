@@ -5,6 +5,7 @@ import os
 import json
 import io
 import requests
+import hashlib
 from flask import Flask, render_template, request, redirect, url_for, flash
 from tinydb import TinyDB, JSONStorage
 from tinydb.middlewares import CachingMiddleware
@@ -35,20 +36,31 @@ db = TinyDB(
 
 
 def get_ingredient_choices(recettes):
-    """Extract unique ingredient names and units from all recipes (from 'ingredients' only)."""
-    choices = set()
+    """Extract unique ingredient names and units from all recipes, separated by type."""
+    unite_choices = set()
+    quantite_choices = set()
     for r in recettes:
-        if 'ingredients' in r:
-            for ing in r['ingredients']:
-                if 'nom' in ing and 'unite' in ing:
-                    choices.add((ing['nom'], ing['unite']))
-    return sorted(list(choices))
+        # Pour ingrédients à l'unité
+        if 'ingredients_unite' in r:
+            for ing in r['ingredients_unite']:
+                unite_choices.add((ing['nom'], ''))
+        # Pour ingrédients en quantité
+        if 'ingredients_quantite' in r:
+            for ing in r['ingredients_quantite']:
+                unite = ing.get('unite', '')
+                quantite_choices.add((ing['nom'], unite))
+    return sorted(list(unite_choices)), sorted(list(quantite_choices))
 
 
-def save_photo(photo):
-    """Save uploaded photo and return filename."""
+def save_photo(photo, recette_index=None, photo_num=None):
+    """Save uploaded photo and return filename with custom format."""
     if photo and photo.filename != '':
-        filename = secure_filename(photo.filename)
+        ext = os.path.splitext(photo.filename)[1]
+        # Format: {recette_index}_{photo_num}.ext
+        if recette_index is not None and photo_num is not None:
+            filename = f"{recette_index}_{photo_num}{ext}"
+        else:
+            filename = secure_filename(photo.filename)
         photo.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
         return filename
     return None
@@ -144,6 +156,10 @@ def parse_marmiton(url):
 
     return nom, ingredients, photos
 
+def get_recette_hash(nom):
+    """Return a short hash for the recipe name."""
+    return hashlib.sha1(nom.encode('utf-8')).hexdigest()[:8]
+
 # --- Routes ---
 @app.route('/')
 def index():
@@ -158,9 +174,14 @@ def index():
             # Cherche dans les notes
             if 'notes' in recette and q in str(recette['notes']).lower():
                 return True
-            # Cherche dans les ingrédients
-            if 'ingredients' in recette:
-                for ing in recette['ingredients']:
+            # Cherche dans les ingrédients à l'unité
+            if 'ingredients_unite' in recette:
+                for ing in recette['ingredients_unite']:
+                    if 'nom' in ing and q in str(ing['nom']).lower():
+                        return True
+            # Cherche dans les ingrédients en quantité
+            if 'ingredients_quantite' in recette:
+                for ing in recette['ingredients_quantite']:
                     if 'nom' in ing and q in str(ing['nom']).lower():
                         return True
             return False
@@ -181,24 +202,63 @@ def add():
     """Add a new recipe."""
     if request.method == 'POST':
         try:
-            recette = {
-                'nom': request.form.get('nom', '').strip(),
-                'notes': request.form.get('notes', '').strip(),
-                'ingredients': json.loads(request.form.get('ingredients_json', '[]')),
-                'photos': []
-            }
+            nom_recette = request.form.get('nom', '').strip()
+            photos = []
             photo = request.files.get('photo')
-            filename = save_photo(photo)
-            if filename:
-                recette['photos'].append(filename)
-            db.insert(recette)
+            print("DEBUG photo:", photo)
+            if photo and photo.filename != '':
+                print("DEBUG photo.filename:", photo.filename)
+                filename = save_photo(photo, recette_index='new', photo_num=0)
+                print("DEBUG saved filename:", filename)
+                photos.append(filename)
+            # DEBUG: print raw ingredient fields
+            print("DEBUG ingredients_unite_json:", request.form.get('ingredients_unite_json', ''))
+            print("DEBUG ingredients_quantite_json:", request.form.get('ingredients_quantite_json', ''))
+            # Defensive: if empty string, use []
+            ingredients_unite_raw = request.form.get('ingredients_unite_json', '')
+            if not ingredients_unite_raw.strip():
+                ingredients_unite = []
+            else:
+                ingredients_unite = json.loads(ingredients_unite_raw)
+            ingredients_quantite_raw = request.form.get('ingredients_quantite_json', '')
+            if not ingredients_quantite_raw.strip():
+                ingredients_quantite = []
+            else:
+                ingredients_quantite = json.loads(ingredients_quantite_raw)
+            recette = {
+                'nom': nom_recette,
+                'hash': get_recette_hash(nom_recette),
+                'notes': request.form.get('notes', '').strip(),
+                'ingredients_unite': ingredients_unite,
+                'ingredients_quantite': ingredients_quantite,
+                'photos': photos
+            }
+            doc_id = db.insert(recette)
+            print("DEBUG doc_id:", doc_id)
+            # Renomme la photo si besoin avec le vrai doc_id
+            if photos:
+                ext = os.path.splitext(photos[0])[1]
+                # Ajoute le hash dans le nom du fichier
+                new_filename = f"{doc_id}_{get_recette_hash(nom_recette)}_0{ext}"
+                old_path = os.path.join(app.config['UPLOAD_FOLDER'], photos[0])
+                new_path = os.path.join(app.config['UPLOAD_FOLDER'], new_filename)
+                print("DEBUG rename:", old_path, "->", new_path)
+                os.rename(old_path, new_path)
+                recette['photos'][0] = new_filename
+                db.update({'photos': recette['photos']}, doc_ids=[doc_id])
             flash("Recette ajoutée avec succès", "success")
             return redirect(url_for('index'))
         except Exception as e:
+            print("DEBUG Exception:", e)
             flash(f"Erreur lors de l'ajout : {e}", "danger")
     recettes = db.all()
-    ingredient_choices = get_ingredient_choices(recettes)
-    return render_template('add.html', recettes=recettes, ingredient_choices=ingredient_choices)
+    ingredient_choices_unite, ingredient_choices_quantite = get_ingredient_choices(recettes)
+    return render_template(
+        'add.html',
+        recettes=recettes,
+        ingredient_choices_unite=ingredient_choices_unite,
+        ingredient_choices_quantite=ingredient_choices_quantite
+    )
 
 @app.route('/manage')
 def manage():
@@ -215,15 +275,23 @@ def edit(doc_id):
         return redirect(url_for('manage'))
     if request.method == 'POST':
         try:
+            nom_recette = request.form.get('nom', '').strip()
+            notes_raw = request.form.get('notes', '').strip()
+            notes = json.dumps(notes_raw, ensure_ascii=True)[1:-1]
             updated = {
-                'nom': request.form.get('nom', '').strip(),
-                'notes': request.form.get('notes', '').strip(),
-                'ingredients': json.loads(request.form.get('ingredients_json', '[]')),
+                'nom': nom_recette,
+                'hash': get_recette_hash(nom_recette),
+                'notes': notes,
+                'ingredients_unite': json.loads(request.form.get('ingredients_unite_json', '[]')),
+                'ingredients_quantite': json.loads(request.form.get('ingredients_quantite_json', '[]')),
                 'photos': recette.get('photos', [])
             }
             photo = request.files.get('photo')
-            filename = save_photo(photo)
-            if filename:
+            if photo and photo.filename != '':
+                photo_num = len(updated['photos'])
+                ext = os.path.splitext(photo.filename)[1]
+                filename = f"{doc_id}_{get_recette_hash(nom_recette)}_{photo_num}{ext}"
+                photo.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
                 updated['photos'].append(filename)
             db.update(updated, doc_ids=[doc_id])
             flash("Recette modifiée avec succès", "success")
@@ -231,8 +299,14 @@ def edit(doc_id):
         except Exception as e:
             flash(f"Erreur lors de la modification : {e}", "danger")
     recettes = db.all()
-    ingredient_choices = get_ingredient_choices(recettes)
-    return render_template('edit.html', recette=recette, doc_id=doc_id, ingredient_choices=ingredient_choices)
+    ingredient_choices_unite, ingredient_choices_quantite = get_ingredient_choices(recettes)
+    return render_template(
+        'edit.html',
+        recette=recette,
+        doc_id=doc_id,
+        ingredient_choices_unite=ingredient_choices_unite,
+        ingredient_choices_quantite=ingredient_choices_quantite
+    )
 
 @app.route('/delete/<int:doc_id>')
 def delete(doc_id):
@@ -248,22 +322,25 @@ def delete(doc_id):
 def add_from_url():
     if request.method == 'POST':
         url = request.form.get('url', '').strip()
-        recette = {'nom': '', 'ingredients': [], 'photos': [], 'notes': ''}
+        recette = {'nom': '', 'ingredients': [], 'photos': [], 'notes': '', 'url': url}
         if 'hellofresh' in url:
             print("TRYING TO PARSE HELLOFRESH")
             nom, ingredients, photos = parse_hellofresh(url)
             recette['nom'] = nom
+            recette['hash'] = get_recette_hash(nom)
             recette['ingredients'] = ingredients
             recette['photos'] = photos
             recette['notes'] = f'Recette importée depuis HelloFresh\n{url}'
         elif 'marmiton.org' in url or 'marmiton.fr' in url:
             nom, ingredients, photos = parse_marmiton(url)
             recette['nom'] = nom
+            recette['hash'] = get_recette_hash(nom)
             recette['ingredients'] = ingredients
             recette['photos'] = photos
             recette['notes'] = f'Recette importée depuis Marmiton\n{url}'
         else:
             recette['nom'] = url
+            recette['hash'] = get_recette_hash(url)
             recette['notes'] = f'Recette à compléter\n{url}'
         db.insert(recette)
         flash("Recette ajoutée depuis le lien", "success")

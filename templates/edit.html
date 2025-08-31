@@ -29,77 +29,39 @@
                 <label class="form-label">Nom de la recette</label>
                 <input type="text" name="nom" class="form-control" value="{{ recette.nom if recette.nom is defined else '' }}" required>
             </div>
-            <!-- Ingrédients dynamiques -->
+            <!-- Ingrédients à l'unité -->
             <div class="mb-3">
-                <label class="form-label">Modifier les ingrédients</label>
+                <label class="form-label">Modifier les ingrédients à l'unité</label>
                 <div class="input-group mb-2">
-                    <input type="text" id="ingredient-nom" class="form-control" placeholder="Nom de l'ingrédient" list="ingredient-choices">
-                    <datalist id="ingredient-choices">
-                        {% for nom, unite in ingredient_choices %}
+                    <input type="text" id="ingredient-unite-nom" class="form-control" placeholder="Nom de l'ingrédient" list="ingredient-choices-unite">
+                    <datalist id="ingredient-choices-unite">
+                        {% for nom, unite in ingredient_choices_unite %}
+                            <option value="{{ nom }}">{{ nom }}</option>
+                        {% endfor %}
+                    </datalist>
+                    <input type="number" id="ingredient-unite-quantite" class="form-control" placeholder="Quantité">
+                    <button type="button" class="btn btn-outline-success" onclick="addIngredientUnite()">Ajouter</button>
+                </div>
+                <ul id="ingredients-unite-list" class="list-group mb-3"></ul>
+            </div>
+            <input type="hidden" name="ingredients_unite_json" id="ingredients-unite-json">
+            <!-- Ingrédients en quantité -->
+            <div class="mb-3">
+                <label class="form-label">Modifier les ingrédients en quantité</label>
+                <div class="input-group mb-2">
+                    <input type="text" id="ingredient-quantite-nom" class="form-control" placeholder="Nom de l'ingrédient" list="ingredient-choices-quantite">
+                    <datalist id="ingredient-choices-quantite">
+                        {% for nom, unite in ingredient_choices_quantite %}
                             <option value="{{ nom }}" data-unite="{{ unite }}">{{ nom }} ({{ unite }})</option>
                         {% endfor %}
                     </datalist>
-                    <input type="number" id="ingredient-quantite" class="form-control" placeholder="Quantité">
-                    <input type="text" id="ingredient-unite" class="form-control" placeholder="Unité">
-                    <button type="button" class="btn btn-outline-success" onclick="addIngredient()">Ajouter</button>
+                    <input type="number" id="ingredient-quantite-quantite" class="form-control" placeholder="Quantité">
+                    <input type="text" id="ingredient-quantite-unite" class="form-control" placeholder="Unité">
+                    <button type="button" class="btn btn-outline-success" onclick="addIngredientQuantite()">Ajouter</button>
                 </div>
-                <ul id="ingredients-list" class="list-group mb-3"></ul>
-                <script>
-                // Auto-fill unit when selecting ingredient from datalist
-                document.getElementById('ingredient-nom').addEventListener('input', function(e) {
-                    const val = e.target.value;
-                    const options = document.getElementById('ingredient-choices').options;
-                    for (let i = 0; i < options.length; i++) {
-                        if (options[i].value === val) {
-                            document.getElementById('ingredient-unite').value = options[i].getAttribute('data-unite');
-                            break;
-                        }
-                    }
-                });
-                </script>
+                <ul id="ingredients-quantite-list" class="list-group mb-3"></ul>
             </div>
-            <input type="hidden" name="ingredients_json" id="ingredients-json">
-            <script>
-    // Pré-remplir la liste des ingrédients existants
-    let ingredients = {{ recette.ingredients|tojson|safe if recette.ingredients is defined else '[]' }};
-    function addIngredient() {
-        const nom = document.getElementById('ingredient-nom').value.trim();
-        const quantite = document.getElementById('ingredient-quantite').value.trim();
-        const unite = document.getElementById('ingredient-unite').value.trim();
-        if (nom && quantite && unite) {
-            ingredients.push({nom, quantite, unite});
-            updateIngredientsList();
-            document.getElementById('ingredient-nom').value = '';
-            document.getElementById('ingredient-quantite').value = '';
-            document.getElementById('ingredient-unite').value = '';
-        }
-    }
-    function updateIngredientsList() {
-        const list = document.getElementById('ingredients-list');
-        list.innerHTML = '';
-        ingredients.forEach((ing, idx) => {
-            const li = document.createElement('li');
-            li.className = 'list-group-item d-flex flex-wrap justify-content-between align-items-center';
-            li.innerHTML = `
-                <span class="me-2">${ing.nom} :</span>
-                <input type="number" min="0" style="width:80px" class="form-control form-control-sm d-inline-block me-2" value="${ing.quantite}" onchange="updateIngredientField(${idx}, 'quantite', this.value)">
-                <input type="text" style="width:80px" class="form-control form-control-sm d-inline-block me-2" value="${ing.unite}" onchange="updateIngredientField(${idx}, 'unite', this.value)">
-                <button type='button' class='btn btn-sm btn-danger me-2' onclick='removeIngredient(${idx})'>Supprimer</button>
-            `;
-            list.appendChild(li);
-        });
-        document.getElementById('ingredients-json').value = JSON.stringify(ingredients);
-    }
-    function updateIngredientField(idx, field, value) {
-        ingredients[idx][field] = value;
-        document.getElementById('ingredients-json').value = JSON.stringify(ingredients);
-    }
-    function removeIngredient(idx) {
-        ingredients.splice(idx, 1);
-        updateIngredientsList();
-    }
-    document.addEventListener('DOMContentLoaded', updateIngredientsList);
-</script>
+            <input type="hidden" name="ingredients_quantite_json" id="ingredients-quantite-json">
             <!-- Notes -->
             <div class="mb-3">
                 <label class="form-label">Notes personnelles</label>
@@ -115,31 +77,77 @@
         </form>
     </div>
     <script>
-    let photos = {{ recette.photos|tojson|safe if recette.photos is defined else '[]' }};
-    function addPhotoUrl() {
-        const url = document.getElementById('photo-url').value.trim();
-        if (url) {
-            photos.push(url);
-            updatePhotosList();
-            document.getElementById('photo-url').value = '';
+    // Ingrédients à l'unité
+    let ingredientsUnite = {{ recette.ingredients_unite|tojson|safe if recette.ingredients_unite is defined else '[]' }};
+    function addIngredientUnite() {
+        const nom = document.getElementById('ingredient-unite-nom').value.trim();
+        const quantite = document.getElementById('ingredient-unite-quantite').value.trim();
+        if (nom && quantite) {
+            ingredientsUnite.push({nom, quantite});
+            updateIngredientsUniteList();
+            document.getElementById('ingredient-unite-nom').value = '';
+            document.getElementById('ingredient-unite-quantite').value = '';
         }
     }
-    function updatePhotosList() {
-        const list = document.getElementById('photos-list');
+    function updateIngredientsUniteList() {
+        const list = document.getElementById('ingredients-unite-list');
         list.innerHTML = '';
-        photos.forEach((photo, idx) => {
+        ingredientsUnite.forEach((ing, idx) => {
             const li = document.createElement('li');
             li.className = 'list-group-item d-flex justify-content-between align-items-center';
-            li.innerHTML = `${photo} <button type='button' class='btn btn-sm btn-danger' onclick='removePhoto(${idx})'>Supprimer</button>`;
+            li.innerHTML = `${ing.nom} : ${ing.quantite} <button type='button' class='btn btn-sm btn-danger' onclick='removeIngredientUnite(${idx})'>Supprimer</button>`;
             list.appendChild(li);
         });
-        document.getElementById('photos-json').value = JSON.stringify(photos);
+        document.getElementById('ingredients-unite-json').value = JSON.stringify(ingredientsUnite);
     }
-    function removePhoto(idx) {
-        photos.splice(idx, 1);
-        updatePhotosList();
+    function removeIngredientUnite(idx) {
+        ingredientsUnite.splice(idx, 1);
+        updateIngredientsUniteList();
     }
-    document.addEventListener('DOMContentLoaded', updatePhotosList);
-</script>
+
+    // Ingrédients en quantité
+    let ingredientsQuantite = {{ recette.ingredients_quantite|tojson|safe if recette.ingredients_quantite is defined else '[]' }};
+    document.getElementById('ingredient-quantite-nom').addEventListener('input', function(e) {
+        const val = e.target.value;
+        const options = document.getElementById('ingredient-choices-quantite').options;
+        for (let i = 0; i < options.length; i++) {
+            if (options[i].value === val) {
+                document.getElementById('ingredient-quantite-unite').value = options[i].getAttribute('data-unite');
+                break;
+            }
+        }
+    });
+    function addIngredientQuantite() {
+        const nom = document.getElementById('ingredient-quantite-nom').value.trim();
+        const quantite = document.getElementById('ingredient-quantite-quantite').value.trim();
+        const unite = document.getElementById('ingredient-quantite-unite').value.trim();
+        if (nom && quantite && unite) {
+            ingredientsQuantite.push({nom, quantite, unite});
+            updateIngredientsQuantiteList();
+            document.getElementById('ingredient-quantite-nom').value = '';
+            document.getElementById('ingredient-quantite-quantite').value = '';
+            document.getElementById('ingredient-quantite-unite').value = '';
+        }
+    }
+    function updateIngredientsQuantiteList() {
+        const list = document.getElementById('ingredients-quantite-list');
+        list.innerHTML = '';
+        ingredientsQuantite.forEach((ing, idx) => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item d-flex justify-content-between align-items-center';
+            li.innerHTML = `${ing.nom} : ${ing.quantite} ${ing.unite} <button type='button' class='btn btn-sm btn-danger' onclick='removeIngredientQuantite(${idx})'>Supprimer</button>`;
+            list.appendChild(li);
+        });
+        document.getElementById('ingredients-quantite-json').value = JSON.stringify(ingredientsQuantite);
+    }
+    function removeIngredientQuantite(idx) {
+        ingredientsQuantite.splice(idx, 1);
+        updateIngredientsQuantiteList();
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+        updateIngredientsUniteList();
+        updateIngredientsQuantiteList();
+    });
+    </script>
 </body>
 </html>

@@ -23,7 +23,12 @@
 <body>
     {% include 'navbar.html' %}
     <div class="container py-4">
-        <h1 class="mb-4">{{ recette.nom if recette.nom is defined else 'Recette' }}</h1>
+        <h1 class="mb-4">
+            {{ recette.nom if recette.nom is defined else 'Recette' }}
+            {% if recette.hash is defined %}
+                <span class="badge bg-secondary" style="font-size:0.9em;">#{{ recette.hash }}</span>
+            {% endif %}
+        </h1>
         {% if recette.photos is defined and recette.photos|length > 0 %}
         <div id="carouselDetail" class="carousel slide mb-4" data-bs-ride="carousel">
             <div class="carousel-inner">
@@ -50,16 +55,17 @@
         </div>
         {% endif %}
         <ul class="list-group mb-4">
-            {% for key, value in recette.items() %}
-                {% if key != 'photos' and key != 'ingredients' and value is mapping and 'quantite' in value and 'unite' in value %}
+            {% if recette.ingredients_unite is defined and recette.ingredients_unite|length > 0 %}
+                <li class="list-group-item"><strong>Ingrédients à l'unité :</strong></li>
+                {% for ing in recette.ingredients_unite %}
                     <li class="list-group-item">
-                        {{ key | capitalize }} : {{ value['quantite'] }} {{ value['unite'] }}
+                        {{ ing.nom | capitalize }} : {{ ing.quantite }} {{ ing.unite }}
                     </li>
-                {% endif %}
-            {% endfor %}
-            {% if recette.ingredients is defined and recette.ingredients|length > 0 %}
-                <li class="list-group-item"><strong>Ingrédients ajoutés :</strong></li>
-                {% for ing in recette.ingredients %}
+                {% endfor %}
+            {% endif %}
+            {% if recette.ingredients_quantite is defined and recette.ingredients_quantite|length > 0 %}
+                <li class="list-group-item"><strong>Ingrédients en quantité :</strong></li>
+                {% for ing in recette.ingredients_quantite %}
                     <li class="list-group-item">
                         {{ ing.nom | capitalize }} : {{ ing.quantite }} {{ ing.unite }}
                     </li>
@@ -68,6 +74,13 @@
         </ul>
         {% if recette.notes is defined and recette.notes %}
         <div class="alert alert-info"><strong>Notes :</strong> {{ recette.notes }}</div>
+        {% endif %}
+        {% if recette.url is defined and recette.url %}
+            <div class="mb-3">
+                <a href="{{ recette.url }}" target="_blank" class="btn btn-outline-info">
+                    Voir la recette originale
+                </a>
+            </div>
         {% endif %}
         <a href="{{ url_for('index') }}" class="btn btn-secondary">Retour à l'accueil</a>
     </div>

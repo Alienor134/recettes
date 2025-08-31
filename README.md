@@ -23,3 +23,7 @@
 - Lance `flask run` (voir `start.sh` pour Termux/Android).
 - Ouvre dans ton navigateur (ou sur ton téléphone).
 - Fais un commit et push git pour mettre à jour le json sur github.
+
+# A tester entre amis
+
+S'ils sont sur le même réseau internet que vous, vos amis peuvent se connecter au site et entrer leurs propres recettes avec leurs photos. Cela se mettra à jour sur votre téléphone. Voir l'adresse IP de votre téléphone qui s'affiche dans le terminal. 
