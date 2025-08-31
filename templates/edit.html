@@ -1,47 +1,141 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="utf-8">
     <title>Modifier la recette</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
 </head>
 <body>
+    {% include 'navbar.html' %}
     <div class="container mt-5">
         <h1>Modifier la recette</h1>
-        <form method="POST">
+        <form method="POST" enctype="multipart/form-data">
+            <!-- Nom de la recette -->
             <div class="mb-3">
-                <label for="nom" class="form-label">Nom</label>
-                <input type="text" class="form-control" id="nom" name="nom" value="{{ recette.nom }}">
+                <label class="form-label">Nom de la recette</label>
+                <input type="text" name="nom" class="form-control" value="{{ recette.nom if recette.nom is defined else '' }}" required>
             </div>
-
+            <!-- Ingrédients dynamiques -->
             <div class="mb-3">
-                <label for="farine" class="form-label">Farine (g)</label>
-                <input type="number" class="form-control" id="farine" name="farine" value="{{ recette.farine }}">
+                <label class="form-label">Modifier les ingrédients</label>
+                <div class="input-group mb-2">
+                    <input type="text" id="ingredient-nom" class="form-control" placeholder="Nom de l'ingrédient" list="ingredient-choices">
+                    <datalist id="ingredient-choices">
+                        {% for nom, unite in ingredient_choices %}
+                            <option value="{{ nom }}" data-unite="{{ unite }}">{{ nom }} ({{ unite }})</option>
+                        {% endfor %}
+                    </datalist>
+                    <input type="number" id="ingredient-quantite" class="form-control" placeholder="Quantité">
+                    <input type="text" id="ingredient-unite" class="form-control" placeholder="Unité">
+                    <button type="button" class="btn btn-outline-success" onclick="addIngredient()">Ajouter</button>
+                </div>
+                <ul id="ingredients-list" class="list-group mb-3"></ul>
+                <script>
+                // Auto-fill unit when selecting ingredient from datalist
+                document.getElementById('ingredient-nom').addEventListener('input', function(e) {
+                    const val = e.target.value;
+                    const options = document.getElementById('ingredient-choices').options;
+                    for (let i = 0; i < options.length; i++) {
+                        if (options[i].value === val) {
+                            document.getElementById('ingredient-unite').value = options[i].getAttribute('data-unite');
+                            break;
+                        }
+                    }
+                });
+                </script>
             </div>
-
+            <input type="hidden" name="ingredients_json" id="ingredients-json">
+            <script>
+    // Pré-remplir la liste des ingrédients existants
+    let ingredients = {{ recette.ingredients|tojson|safe if recette.ingredients is defined else '[]' }};
+    function addIngredient() {
+        const nom = document.getElementById('ingredient-nom').value.trim();
+        const quantite = document.getElementById('ingredient-quantite').value.trim();
+        const unite = document.getElementById('ingredient-unite').value.trim();
+        if (nom && quantite && unite) {
+            ingredients.push({nom, quantite, unite});
+            updateIngredientsList();
+            document.getElementById('ingredient-nom').value = '';
+            document.getElementById('ingredient-quantite').value = '';
+            document.getElementById('ingredient-unite').value = '';
+        }
+    }
+    function updateIngredientsList() {
+        const list = document.getElementById('ingredients-list');
+        list.innerHTML = '';
+        ingredients.forEach((ing, idx) => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item d-flex flex-wrap justify-content-between align-items-center';
+            li.innerHTML = `
+                <span class="me-2">${ing.nom} :</span>
+                <input type="number" min="0" style="width:80px" class="form-control form-control-sm d-inline-block me-2" value="${ing.quantite}" onchange="updateIngredientField(${idx}, 'quantite', this.value)">
+                <input type="text" style="width:80px" class="form-control form-control-sm d-inline-block me-2" value="${ing.unite}" onchange="updateIngredientField(${idx}, 'unite', this.value)">
+                <button type='button' class='btn btn-sm btn-danger me-2' onclick='removeIngredient(${idx})'>Supprimer</button>
+            `;
+            list.appendChild(li);
+        });
+        document.getElementById('ingredients-json').value = JSON.stringify(ingredients);
+    }
+    function updateIngredientField(idx, field, value) {
+        ingredients[idx][field] = value;
+        document.getElementById('ingredients-json').value = JSON.stringify(ingredients);
+    }
+    function removeIngredient(idx) {
+        ingredients.splice(idx, 1);
+        updateIngredientsList();
+    }
+    document.addEventListener('DOMContentLoaded', updateIngredientsList);
+</script>
+            <!-- Notes -->
             <div class="mb-3">
-                <label for="oeufs" class="form-label">Œufs</label>
-                <input type="number" class="form-control" id="oeufs" name="oeufs" value="{{ recette.oeufs }}">
+                <label class="form-label">Notes personnelles</label>
+                <textarea name="notes" class="form-control" rows="3">{{ recette.notes if recette.notes is defined else '' }}</textarea>
             </div>
-
+            <!-- Photo -->
             <div class="mb-3">
-                <label for="lait_ml" class="form-label">Lait (ml)</label>
-                <input type="number" class="form-control" id="lait_ml" name="lait_ml" value="{{ recette.lait_mL}}">
+                <label class="form-label">Photo du plat</label>
+                <input type="file" name="photo" class="form-control" accept="image/*">
             </div>
-
-            <div class="mb-3">
-                <label for="sucre" class="form-label">Sucre (g)</label>
-                <input type="number" class="form-control" id="sucre" name="sucre" value="{{ recette.sucre }}">
-            </div>
-
-            <div class="mb-3">
-                <label for="instructions" class="form-label">Instructions</label>
-                <textarea class="form-control" id="instructions" name="instructions" rows="5">{{ recette.instructions }}</textarea>
-            </div>
-
             <button type="submit" class="btn btn-primary">Enregistrer</button>
             <a href="{{ url_for('index') }}" class="btn btn-secondary">Annuler</a>
         </form>
     </div>
+</body>
+</html>
+                </div>
+                <ul id="photos-list" class="list-group mt-2"></ul>
+            </div>
+            <input type="hidden" name="photos_json" id="photos-json">
+            <button type="submit" class="btn btn-primary">Enregistrer</button>
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">Annuler</a>
+        </form>
+    </div>
+    <script>
+    let photos = {{ recette.photos|tojson|safe if recette.photos is defined else '[]' }};
+    function addPhotoUrl() {
+        const url = document.getElementById('photo-url').value.trim();
+        if (url) {
+            photos.push(url);
+            updatePhotosList();
+            document.getElementById('photo-url').value = '';
+        }
+    }
+    function updatePhotosList() {
+        const list = document.getElementById('photos-list');
+        list.innerHTML = '';
+        photos.forEach((photo, idx) => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item d-flex justify-content-between align-items-center';
+            li.innerHTML = `${photo} <button type='button' class='btn btn-sm btn-danger' onclick='removePhoto(${idx})'>Supprimer</button>`;
+            list.appendChild(li);
+        });
+        document.getElementById('photos-json').value = JSON.stringify(photos);
+    }
+    function removePhoto(idx) {
+        photos.splice(idx, 1);
+        updatePhotosList();
+    }
+    document.addEventListener('DOMContentLoaded', updatePhotosList);
+</script>
 </body>
 </html>

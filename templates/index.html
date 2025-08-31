@@ -3,61 +3,84 @@
 <head>
     <meta charset="UTF-8">
     <title>🍳 Mes Recettes</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
             background-color: #f8f9fa;
         }
         .card-img-top {
-            max-height: 300px;
+            max-height: 220px;
             object-fit: cover;
+            margin-bottom: 8px;
         }
         .navbar-brand {
             font-weight: bold;
         }
+        .card-body .recette-nom {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        @media (max-width: 600px) {
+            .card-img-top {
+                max-height: 160px;
+            }
+            .card-body .recette-nom {
+                font-size: 1rem;
+            }
+        }
     </style>
 </head>
 <body>
-
-    <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm mb-4">
-        <div class="container">
-            <a class="navbar-brand" href="/">🍳 Alien Recettes</a>
-            <div class="collapse navbar-collapse">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <a class="btn btn-success" href="{{ url_for('add') }}">Ajouter une recette</a>
-                    </li>
-                </ul>
+    {% include 'navbar.html' %}
+    <div class="container py-2">
+        <!-- Barre de recherche -->
+        <form class="mb-3" method="GET" action="">
+            <div class="input-group">
+                <input type="text" class="form-control" placeholder="Rechercher une recette..." name="q" value="{{ request.args.get('q', '') }}">
+                <button class="btn btn-outline-primary" type="submit">Rechercher</button>
             </div>
-        </div>
-    </nav>
-<!-- Main content -->
-<div class="container py-4">
-    <div class="row">
-        {% for recette in recettes %}
-        <div class="col-md-6 mb-4">
-            <div class="card shadow">
-                <img src="{{ url_for('static', filename=recette.photo) }}" class="card-img-top" alt="Photo de la recette">
-                <div class="card-body">
-                    <h5 class="card-title">Recette #{{ loop.index }}</h5>
-                    <ul class="list-group list-group-flush">
-                        {% for key, value in recette.items() %}
-                            {% if key != 'photo' %}
-                                <li class="list-group-item">
-                                    {{ key | capitalize }} : {{ value.quantité }} {{ value.unité }}
-                                </li>
-                            {% endif %}
-                        {% endfor %}
-                    </ul>
+        </form>
+        <div class="row">
+            {% for recette in recettes %}
+            <div class="col-12 mb-3">
+                <div class="card shadow-sm">
+                    {% if recette.photos is defined and recette.photos|length > 0 %}
+                    <div id="carousel{{ loop.index }}" class="carousel slide" data-bs-ride="carousel">
+                        <div class="carousel-inner">
+                            {% for photo in recette.photos %}
+                                <div class="carousel-item {% if loop.index0 == 0 %}active{% endif %}">
+                                    {% if photo.startswith('http://') or photo.startswith('https://') %}
+                                        <img src="{{ photo }}" class="d-block w-100 card-img-top" alt="Photo de la recette">
+                                    {% else %}
+                                        <img src="{{ url_for('static', filename=photo) }}" class="d-block w-100 card-img-top" alt="Photo de la recette">
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                        {% if recette.photos|length > 1 %}
+                        <button class="carousel-control-prev" type="button" data-bs-target="#carousel{{ loop.index }}" data-bs-slide="prev">
+                            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                            <span class="visually-hidden">Précédent</span>
+                        </button>
+                        <button class="carousel-control-next" type="button" data-bs-target="#carousel{{ loop.index }}" data-bs-slide="next">
+                            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                            <span class="visually-hidden">Suivant</span>
+                        </button>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    <div class="card-body py-2">
+                        <a href="{{ url_for('recette_detail', doc_id=recette.doc_id) }}" class="recette-nom text-decoration-none text-dark">
+                            {{ recette.nom if recette.nom is defined else 'Recette #' ~ loop.index }}
+                        </a>
+                    </div>
                 </div>
             </div>
+            {% endfor %}
         </div>
-        {% endfor %}
     </div>
-</div>
-
-    <!-- Bootstrap JS (optional for interactivity) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

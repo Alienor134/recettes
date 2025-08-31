@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <title>{{ recette.nom if recette.nom is defined else 'Recette' }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    {% include 'navbar.html' %}
+    <div class="container py-4">
+        <h1 class="mb-4">{{ recette.nom if recette.nom is defined else 'Recette' }}</h1>
+        {% if recette.photos is defined and recette.photos|length > 0 %}
+        <div id="carouselDetail" class="carousel slide mb-4" data-bs-ride="carousel">
+            <div class="carousel-inner">
+                {% for photo in recette.photos %}
+                <div class="carousel-item {% if loop.index0 == 0 %}active{% endif %}">
+                    {% if photo.startswith('http://') or photo.startswith('https://') %}
+                        <img src="{{ photo }}" class="d-block mx-auto" alt="Photo de la recette" style="width:100%;max-width:400px;max-height:300px;object-fit:cover;">
+                    {% else %}
+                        <img src="{{ url_for('static', filename=photo) }}" class="d-block mx-auto" alt="Photo de la recette" style="width:100%;max-width:400px;max-height:300px;object-fit:cover;">
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% if recette.photos|length > 1 %}
+            <button class="carousel-control-prev" type="button" data-bs-target="#carouselDetail" data-bs-slide="prev" style="background:rgba(0,0,0,0.3);border:none;width:40px;height:40px;top:50%;transform:translateY(-50%);left:10px;">
+                <span class="carousel-control-prev-icon" aria-hidden="true" style="filter:invert(1);"></span>
+                <span class="visually-hidden">Précédent</span>
+            </button>
+            <button class="carousel-control-next" type="button" data-bs-target="#carouselDetail" data-bs-slide="next" style="background:rgba(0,0,0,0.3);border:none;width:40px;height:40px;top:50%;transform:translateY(-50%);right:10px;">
+                <span class="carousel-control-next-icon" aria-hidden="true" style="filter:invert(1);"></span>
+                <span class="visually-hidden">Suivant</span>
+            </button>
+            {% endif %}
+        </div>
+        {% endif %}
+        <ul class="list-group mb-4">
+            {% for key, value in recette.items() %}
+                {% if key != 'photos' and key != 'ingredients' and value is mapping and 'quantite' in value and 'unite' in value %}
+                    <li class="list-group-item">
+                        {{ key | capitalize }} : {{ value['quantite'] }} {{ value['unite'] }}
+                    </li>
+                {% endif %}
+            {% endfor %}
+            {% if recette.ingredients is defined and recette.ingredients|length > 0 %}
+                <li class="list-group-item"><strong>Ingrédients ajoutés :</strong></li>
+                {% for ing in recette.ingredients %}
+                    <li class="list-group-item">
+                        {{ ing.nom | capitalize }} : {{ ing.quantite }} {{ ing.unite }}
+                    </li>
+                {% endfor %}
+            {% endif %}
+        </ul>
+        {% if recette.notes is defined and recette.notes %}
+        <div class="alert alert-info"><strong>Notes :</strong> {{ recette.notes }}</div>
+        {% endif %}
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">Retour à l'accueil</a>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

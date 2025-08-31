@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<!-- templates/navbar.html -->
+<nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(90deg, #43cea2 0%, #185a9d 100%);">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="{{ url_for('index') }}" style="font-weight:bold;">
+            🍳 Recettes
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+            aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <a class="nav-link text-white" href="{{ url_for('add') }}">
+                        <span class="badge bg-success me-1">+</span> Ajouter une recette
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-white" href="{{ url_for('add_from_url') }}">
+                        <span class="badge bg-info me-1">🌐</span> Ajouter depuis un lien
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-white" href="{{ url_for('manage') }}">
+                        <span class="badge bg-warning text-dark me-1">🛠️</span> Gérer
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
