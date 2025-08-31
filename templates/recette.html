@@ -25,9 +25,6 @@
     <div class="container py-4">
         <h1 class="mb-4">
             {{ recette.nom if recette.nom is defined else 'Recette' }}
-            {% if recette.hash is defined %}
-                <span class="badge bg-secondary" style="font-size:0.9em;">#{{ recette.hash }}</span>
-            {% endif %}
         </h1>
         {% if recette.photos is defined and recette.photos|length > 0 %}
         <div id="carouselDetail" class="carousel slide mb-4" data-bs-ride="carousel">
