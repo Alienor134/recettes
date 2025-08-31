@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>🍳 Mes Recettes</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .card-img-top {
+            max-height: 300px;
+            object-fit: cover;
+        }
+        .navbar-brand {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="/">🍳 Alien Recettes</a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="btn btn-success" href="{{ url_for('add') }}">Ajouter une recette</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+<!-- Main content -->
+<div class="container py-4">
+    <div class="row">
+        {% for recette in recettes %}
+        <div class="col-md-6 mb-4">
+            <div class="card shadow">
+                <img src="{{ url_for('static', filename=recette.photo) }}" class="card-img-top" alt="Photo de la recette">
+                <div class="card-body">
+                    <h5 class="card-title">Recette #{{ loop.index }}</h5>
+                    <ul class="list-group list-group-flush">
+                        {% for key, value in recette.items() %}
+                            {% if key != 'photo' %}
+                                <li class="list-group-item">
+                                    {{ key | capitalize }} : {{ value.quantité }} {{ value.unité }}
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+    <!-- Bootstrap JS (optional for interactivity) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
